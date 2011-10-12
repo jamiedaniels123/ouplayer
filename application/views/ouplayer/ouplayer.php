@@ -3,76 +3,79 @@
  *
  * @copyright Copyright 2011 The Open University.
 
-Test, video: /embed/pod/mst209-fun-of-the-fair/a67918b334?
-Test, audio: /embed/pod/l314-spanish/fe481a4d1d?poster=0
+ Test, video: /embed/pod/mst209-fun-of-the-fair/a67918b334?
+ Test, audio: /embed/pod/l314-spanish/fe481a4d1d?poster=0
  */
 //NDF, 2011-04-08/-05-19.
-  $base_url = base_url();
-  //$base_url = str_replace('http://', '//', $base_url);
+$base_url = base_url();
+//$base_url = str_replace('http://', '//', $base_url);
 
 
-  //TODO: move $body_classes to controller function?
+//TODO: move $body_classes to controller function?
 
-  // Add switches to body-class (no 'hulu').
-  $body_classes = "oup mtype-$meta->media_type width-$meta->width theme-{$theme->name} hide-tscript hide-captions hide-settings oup-paused ";
+// Add switches to body-class (no 'hulu').
+$body_classes = "oup mtype-$meta->media_type width-$meta->width theme-{$theme->name} hide-tscript hide-captions hide-settings oup-paused ";
 
-  //Experimental.
-  if ($req->hide_controls /*&& 'video'==$meta->media_type*/) {
-    $body_classes.= "ctl-overlay ";
-  }
+//Experimental.
+if ($req->hide_controls /*&& 'video'==$meta->media_type*/) {
+	$body_classes.= "ctl-overlay ";
+}
 
-  // Language/locale, 'context' (ctx-), 'mode' etc.
-  $body_classes.= ' lang-'.$this->lang->lang_code();
-  $body_classes.= ' ctx-'.get_class($meta);
-  $body_classes.= " mode-$mode "; #(embed|popup).
-  $body_classes.= $debug ? 'debug ':'no-debug ';
-  $body_classes.= $meta->poster_url  ? 'has-poster ':'no-poster ';
-  $body_classes.= $meta->caption_url ? 'has-captions ':'no-captions ';
-  $body_classes.= isset($meta->transcript_html)&&$meta->transcript_html ? 'has-tscript ':'no-tscript '; //Was 'hide-script'
-  $body_classes.= isset($meta->_related_url)&&$meta->_related_url ? 'has-rel-link ':'no-rel-link ';
-  $body_classes.= isset($meta->_access)&&'Y'==$meta->_access['private'] ? 'is-private ':'not-private ';
+// Language/locale, 'context' (ctx-), 'mode' etc.
+$body_classes.= ' lang-'.$this->lang->lang_code();
+$body_classes.= ' ctx-'.get_class($meta);
+$body_classes.= " mode-$mode "; #(embed|popup).
+$body_classes.= $debug ? 'debug ':'no-debug ';
+$body_classes.= $meta->poster_url  ? 'has-poster ':'no-poster ';
+$body_classes.= $meta->caption_url ? 'has-captions ':'no-captions ';
+$body_classes.= isset($meta->transcript_html)&&$meta->transcript_html ? 'has-tscript ':'no-tscript '; //Was 'hide-script'
+$body_classes.= isset($meta->_related_url)&&$meta->_related_url ? 'has-rel-link ':'no-rel-link ';
+$body_classes.= isset($meta->_access)&&'Y'==$meta->_access['private'] ? 'is-private ':'not-private ';
 
 # Media: 512 x 288.
 # Player:512 x 318;
-  $player_height = $meta->height; #+ 30.
-  $media_height = $meta->height - 60;
-  $legacy_height = $meta->height - 30;
-  // Hold poster image for audio-player.
-  $audio_poster = null;
+$player_height = $meta->height; #+ 30.
+$media_height = $meta->height - 60;
+$legacy_height = $meta->height - 30;
+// Hold poster image for audio-player.
+$audio_poster = null;
 
-  $inner=$poster='';
-  if ($meta->poster_url) {
-    $poster = "<img class=\"oup-poster\" alt=\"\" src=\"$meta->poster_url\" />";
-  }
-  if ($meta->media_html5 && 'video' == $meta->media_type) {
-    $support_text = t('Your browser does not support the "video" element.');
-    // HTML5 video type/codec, see http://wiki.whatwg.org/wiki/Video_type_parameters
-    $type = config_item('ouplayer_video_type'); //Was: '_codec'.
-    $type = $type ? $type : 'type=\'video/mp4; codecs="avc1.42E01E, mp4a.40.2"\' '; //<!--Was: codecs="bogus", avc1.4D401E, mp4a.40.2 -->
-    $html5_media_url = str_replace('podcast.', 'media-podcast.', $meta->media_url);
-    $inner =<<<EOF
-  $poster
+$inner=$poster='';
+if ($meta->poster_url) {
+	$poster = "<img class=\"oup-poster\" alt=\"\" src=\"$meta->poster_url\" />";
+}
+if ($meta->media_html5 && 'video' == $meta->media_type) {
+	$support_text = t('Your browser does not support the "video" element.');
+	// HTML5 video type/codec, see http://wiki.whatwg.org/wiki/Video_type_parameters
+	$type = config_item('ouplayer_video_type'); //Was: '_codec'.
+	$type = $type ? $type : 'type=\'video/mp4; codecs="avc1.42E01E, mp4a.40.2"\' '; //<!--Was: codecs="bogus", avc1.4D401E, mp4a.40.2 -->
+	$html5_media_url = str_replace('podcast.', 'media-podcast.', $meta->media_url);
+	$inner =<<<EOF
+	$poster
   <video class="oup-html5-media" poster="$meta->poster_url" width="$meta->width" height="$player_height" controls>
     <source src="$meta->media_url" $type/>
     <div id="no-support">$support_text</div>
   </video>
   <a href="$meta->media_url" class="html5-dload">[Download]</a>
 EOF;
-  }
-  elseif ($meta->media_html5 && 'audio' == $meta->media_type) {
+}
+elseif ($meta->media_html5 && 'audio' == $meta->media_type) {
 	$audio_poster = $poster;
 	$support_text = t('Your browser does not support the "audio" element.');
 	$inner =<<<EOF
-  $poster
+	$poster
   <audio class="oup-html5-media" src="$meta->media_url" style="width:{$meta->width}px; height:{$meta->object_height}px;" controls
    ><div id="no-support">$support_text</div></audio>
 EOF;
-  }
+}
 
-  //<meta> below - try to ensure the most recent MSIE rendering engine
-  //@header('X-UA-Compatible: IE=edge');
+//<meta> below - try to ensure the most recent MSIE rendering engine
+//@header('X-UA-Compatible: IE=edge');
 ?>
-<!DOCTYPE html><html lang="en"><meta charset="utf-8" /><title><?=$meta->title ?> | <?=t('OU player') ?></title>
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8" />
+<title><?=$meta->title ?> | <?=t('OU player') ?></title>
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 <meta name="copyright" value="&copy; 2011 The Open University" />
 
@@ -84,7 +87,8 @@ for (var i=0; i < e.length; i++){ document.createElement(e[i]); }
 </script>
 <![endif]-->
 
-<link rel="stylesheet" href="<?=$base_url ?>assets/ouplayer/ouplayer.core.css" />
+<link rel="stylesheet"
+	href="<?=$base_url ?>assets/ouplayer/ouplayer.core.css" />
 <?php if (isset($theme->styles)): ?>
 <link rel="stylesheet" href="<?=$base_url ?>assets/<?=$theme->styles ?>" />
 <?php endif; ?>
@@ -112,63 +116,74 @@ for (var i=0; i < e.length; i++){ document.createElement(e[i]); }
 
 <?php /*
 <script type="text/javascript" src="http://www.universalsubtitles.org/site_media/js/mirosubs-widgetizer.js">
-        </script>
-*/ 
+</script>
+*/
 $this->load->view('ouplayer/oup_analytics');
 ?>
 <body role="application" id="ouplayer" class="<?=$body_classes ?>">
 
-<div id="XX-ouplayer-outer">
+	<div id="XX-ouplayer-outer">
 
-<?php //=$audio_poster ?>
-<div id="ouplayer-div" data-XX-style="width:<?=$meta->width ?>px; height:<?=$meta->object_height ?>px;">
-<?=$inner ?>
+	<?php //=$audio_poster ?>
+		<div id="ouplayer-div"
+			data-XX-style="width:<?=$meta->width ?>px; height:<?=$meta->object_height ?>px;">
+			<?=$inner ?>
 
-</div>
+		</div>
 
-<?php if(isset($meta->transcript_html) && ($meta->transcript_html || $debug)): ?>
-<div role="document" id="transcript" class="oup-tscript-panel" >
-<button class="tscript-close" aria-label="<?=('Close')?>" title="<?=t('Close script') ?>"><span>X</span></button>
-<a class="pdf icon" href="<?=$meta->transcript_url ?>" target="_blank" title="<?=t('New window: %s', t('PDF')) ?>"><span><?=t('Download transcript') ?></span></a>
-<div class="transcript">
-<?= $meta->transcript_html ? $meta->transcript_html : '[No transcript - debug]'; ?>
-</div>
-<button class="tscript-close tscript-close-end" aria-label="<?=('Close')?>" title="<?=t('Close script') ?>"><span>X</span></button>
-</div>
-<?php endif; ?>
+		<?php if(isset($meta->transcript_html) && ($meta->transcript_html || $debug)): ?>
+		<div role="document" id="transcript" class="oup-tscript-panel">
+			<button class="tscript-close" aria-label="<?=('Close')?>"
+				title="<?=t('Close script') ?>">
+				<span>X</span>
+			</button>
+			<a class="pdf icon" href="<?=$meta->transcript_url ?>"
+				target="_blank" title="<?=t('New window: %s', t('PDF')) ?>"><span><?=t('Download transcript') ?>
+			</span> </a>
+			<div class="transcript">
+			<?= $meta->transcript_html ? $meta->transcript_html : '[No transcript - debug]'; ?>
+			</div>
+			<button class="tscript-close tscript-close-end"
+				aria-label="<?=('Close')?>" title="<?=t('Close script') ?>">
+				<span>X</span>
+			</button>
+		</div>
+		<?php endif; ?>
 
-<noscript>
-<?php
-  // Basic no-script Flash-Flowplayer solution.
-  $view_data = array('inner'=>$inner);
-  $this->load->view('ouplayer/player_noscript.php', $view_data);
-?>
-</noscript>
+		<noscript>
+		<?php
+		// Basic no-script Flash-Flowplayer solution.
+		$view_data = array('inner'=>$inner);
+		$this->load->view('ouplayer/player_noscript.php', $view_data);
+		?>
+		</noscript>
 
-</div>
+	</div>
 
-<?php
-  $this->load->view('ouplayer/oup_settings.php');
+	<?php
+	$this->load->view('ouplayer/oup_settings.php');
 
-  $this->load->view('ouplayer/oup_controls.php');
-?>
+	$this->load->view('ouplayer/oup_controls.php');
+	?>
 
-<div id="media-links" style="display:none">
-  <a href="<?=$meta->media_url ?>"><?=t('Download %s', $meta->title) ?></a>
-</div>
+	<div id="media-links" style="display: none">
+		<a href="<?=$meta->media_url ?>"><?=t('Download %s', $meta->title) ?>
+		</a>
+	</div>
 
-<div role="tooltip" id="oup-tooltips"></div>
+	<div role="tooltip" id="oup-tooltips"></div>
 
 
-<script src="<?=$base_url ?>swf/flowplayer-3.2.6.min.js"></script>
-<!--
+	<script src="<?=$base_url ?>swf/flowplayer-3.2.6.min.js"></script>
+	<!--
 <script src="<?=$base_url ?>swf/flowplayer-src-r652.js"></script>
 <script src="<?=$base_url ?>swf/flashembed.min.js"></script>
 -->
-<script src="<?=$base_url ?>swf/flowplayer.controls-OUP.js"></script>
-<script src="<?=$base_url ?>assets/ouplayer/ouplayer.tooltips.js"></script>
-<script src="<?=$base_url ?>assets/ouplayer/ouplayer.behaviors.js?r=<?=rand() ?>"></script>
-<script>
+	<script src="<?=$base_url ?>swf/flowplayer.controls-OUP.js"></script>
+	<script src="<?=$base_url ?>assets/ouplayer/ouplayer.tooltips.js"></script>
+	<script
+		src="<?=$base_url ?>assets/ouplayer/ouplayer.behaviors.js?r=<?=rand() ?>"></script>
+	<script>
 flashembed.domReady(function(){
   //var f=$f("ouplayer-div");
 
@@ -296,4 +311,5 @@ else{
 });
 </script>
 
-</body></html>
+</body>
+</html>
