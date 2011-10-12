@@ -1,11 +1,10 @@
 /*!
  * OU Player behaviours.
- * Copyright 2011 The Open University.
- * http://embed.open.ac.uk
+ * ©2011 The Open University.
  */
-//(NDF, 2011-04-08/-04-27/-05-18)
+//(N.D.Freear, 2011-04-08/-04-27/-05-18)
 //The OU player object.
-var OUP = OUP || {};
+//var OUP = OUP || {};
 (function(){
 
   OUP.player=null;
@@ -15,11 +14,11 @@ var OUP = OUP || {};
       play_btn_id= 'oup-play-control',
       script_btn = 'tscript',
       controls_id= 'controls',
-      controls_class=("X-play,back,forward,quieter,louder,mute,tscript,popout,related,more,captn,fulls").split(','),
+      controls_class=("play,back,forward,quieter,louder,mute,tscript,popout,related,more,captn,fulls").split(','),
       wrap;
 
   //Utilities.
-  OUP.log=function(o){ if(window.console&&console.log){console.log('OUP: '+o);} };
+  OUP.log=function(o){ if(window.console&&console.log){console.log('OUP: '+o);} };//{ typeof window.console=='object' && typeof console.log!='undefined' && console.log('OUP: '+o); };
   OUP.dir=function(o){ if(window.console&&console.dir){console.dir(o);} };
 
   function byId(id){
@@ -27,7 +26,7 @@ var OUP = OUP || {};
   }
   function byClass(name) {
     var par = wrap ? wrap : document,
-        els = par.getElementsByTagName("*");
+        els = par.getElementsByTagName("*"),
         re = new RegExp("(^|\\s)" + name + "(\\s|$)"),
         i=0;
     for (i in els) {
@@ -77,14 +76,13 @@ var OUP = OUP || {};
   };
 
   function attachTooltip(name) {
-	  var tip,
-	      btn = byClass(name);
+	  var btn = byClass(name);
 	  if(!btn)return;
-	  tip = btn.getAttribute('aria-label');
-	  btn.onmouseover=function(){ OUP.fixedtooltip(tip, btn, {type:'mouseover'}); }
+	  //var tip = btn.getAttribute('aria-label');
+	  btn.onmouseover=function(){ OUP.fixedtooltip(false, btn, {type:'mouseover'}, false,false, name); }
 	  btn.onmouseout =function(){ OUP.delayhidetip(); }
 	  //Hmm, spoofing an event?! {type:"X"}
-      btn.onfocus    =function(){OUP.fixedtooltip(tip, btn, {type:'focus'});} //this?
+	  btn.onfocus    =function(){OUP.fixedtooltip(false, btn, {type:'focus'}, false,false, name);} //this?
       btn.onblur     =function(){OUP.delayhidetip();}
   }
 
@@ -110,6 +108,16 @@ var OUP = OUP || {};
 
     //TODO: Explicitly add/remove wait-cursor/ spinner.
     setTimeout(function(){ply.style.cursor='default';}, 4000);
+
+    //Beware: MSIE 8 sniffing!
+    if (typeof document.documentMode!=='undefined') {
+      ply.className += ' -docmode'+document.documentMode;
+    } else {
+      ply.className += ' -no-docmode';
+    }
+    /*if (typeof document.compatMode!=='undefined') {
+      ply.className += ' -cmode'+document.compatMode;
+    }*/
 
     //var wrap = controls_div; //document.getElementById('oup-controls');
 
@@ -155,14 +163,23 @@ var OUP = OUP || {};
 	addEvent(byClass('more'), 'click', toggleSettings);
 	addEvent(byClass('more-close'), 'click', toggleSettings);
 
-	function embedCode(cn){
-	  //this.select();
-	  var el=byClass(cn);
-	  if(el)el.select();
-	  self.log('embedCode: '+cn);
-	};
-	addEvent(byClass('emcode-opt'), 'focus',(function(){embedCode('emcode-opt');}) );
-	addEvent(byClass('emcode-more'), 'focus',(function(){embedCode('emcode-more');}) );
+	function handleEmbedCode(cn){
+	  var events=['focus','click'/*,'dblclick','select','keypress'*/],
+	      elem=byClass(cn),
+		  ev;
+	  for (ev in events){
+	    addEvent(elem, events[ev], function em(e){
+		  if(elem){ elem.select() }
+	      self.log('embedCode: '+cn+', '+e.type);
+	    });
+	  }
+	  //preventDefault: https://bugs.webkit.org/show_bug.cgi?id=22691
+	  addEvent(elem, 'mouseup', function(e){
+	    if(typeof e.preventDefault!=='undefined'){ e.preventDefault() }
+	  });
+	}
+	handleEmbedCode('emcode-opt');
+	handleEmbedCode('emcode-more');
 
     function toggleCtlFocus(){
       if (hasClass(ply, 'ctl-focus')) {
@@ -216,9 +233,12 @@ var OUP = OUP || {};
 	}
 	addEvent(byClass('fulls'), 'click', toggleFullScreen);
 
-	self.player.onVolume(function(vol){
-		byClass('volume-out').value = parseInt(vol)+'%';
-		self.log('onVolume: '+parseInt(vol)+'%');
+	self.player.onVolume(plVolume = function(vol){
+		var v=parseInt(vol);
+		byClass('volume-out').value = v+'%';
+		byClass('vol-bg-inner').style.width = v+'%';
+		byClass('volume-fg').title = v+'%';
+		self.log('onVolume: '+v+'%');
 	});
 
 	function plPlay(clip){
@@ -242,6 +262,7 @@ var OUP = OUP || {};
       self.log('onError '+code+', '+message);
     });*/
 	self.player.onStart(function(clip){
+	  plVolume(self.player.getVolume());
 	  self.log('onStart: clip '+clip.index);
     });
 	self.player.onBegin(function(clip){
@@ -281,6 +302,15 @@ var OUP = OUP || {};
     var a = document.createElement('audio');
     return !!(a.canPlayType && a.canPlayType('audio/mpeg;').replace(/no/, ''));
   };
+  OUP.supports_flash = function() {
+    var ua=navigator.userAgent;
+    if (ua.indexOf('Android') !== -1) {
+      OUP.log('Android');
+      //alert('Android');
+    }
+	//TODO: check minimum Flash requirement!
+	return (flashembed.isSupported([6,0,65]) && ua.indexOf('Android')===-1/* && ua.indexOf('WebKit')!==-1*/);
+  };
 
   OUP.html5_fallback = function(type){
 	var html5_media = byClass('oup-html5-media'),
@@ -302,6 +332,7 @@ var OUP = OUP || {};
 	  poster.style.display = 'none';
 	  ctrl.style.display = 'none';
 	  //ttl.style.display='none';
+      OUP.log('html5 fallback');
 	} else {
 	  OUP.log('Error, unexpected type value: '+type);
 	}

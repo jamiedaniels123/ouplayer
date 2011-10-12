@@ -10,22 +10,45 @@ require_once APPPATH.'libraries/base_service.php';
 
 class Prezi_serv extends Base_service {
 
+  /** Short URL for the Prezi iPad app (protocol: itms)
+  * http://itunes.apple.com/us/app/prezi/id407759942
+  * Tested, OK in iPad-Safari and iPad-Opera Mini.
+  */
+  const ITUNES_APP_URL = 'itms://itunes.com/apps/prezi';
+
+  /** Get the URL to open a Prezi in the iPad app (protocol: prezi)
+  * Tested, OK in iPad-Safari and iPad-Opera Mini.
+  * @return string
+  */
+  protected function _ipad_open_url($prezi_id) {
+    return 'prezi://open?oid='.$prezi_id;
+  }
+
   /** Call the Embed.ly service (2011-03-23).
+  * @return object
   */
   public function call($url, $matches) {
 
     $meta = array(
       'url'=>$url,
-      'provider_name'=>'prezi',
+      'provider_name'=>'Prezi',
       'provider_mid' =>$matches[1],
       'title' => ucfirst(str_replace('-', ' ', $matches[2])),
+      'author'=>null,
       'timestamp'=>null,
+      '_itunes_app_url'=> self::ITUNES_APP_URL,
+      '_ipad_open_url' => $this->_ipad_open_url($matches[1]),
     );
 
-    $json_url = "http://api.embed.ly/1/oembed?format=json&url=$url";
+    $json_url = $this->_embedly_oembed_url($url);
     $result = $this->_http_request_json($json_url, $spoof=TRUE);
     if (! $result->success) {
+	  //403: Forbidden - Embedly has blocked your client ip. Sign up for an API key at http://embed.ly.
       die("Error, Prezi_serv woops, $json_url");
+      return FALSE; //Error.
+    }
+    if (! $result->json) {
+      die("Error, Prezi_serv JSON, $json_url");
       return FALSE; //Error.
     }
 
@@ -37,10 +60,15 @@ class Prezi_serv extends Base_service {
       // Newer ones, eg. M.Weller's?
       $meta['description'] = $result->json->description;
     }
-    if (preg_match('/^(.*) by (.*) on Prezi/', $result->json->title, $m_title)) {
+	// No longer works (26 Sep 2011) :(.
+    if (preg_match('/^(.*) by (.*)? on Prezi/', $result->json->title, $m_title)) {
       $meta['title'] = $m_title[1];
       $meta['author']= $m_title[2];
     }
+    elseif (preg_match('/^(.*?) on/', $result->json->description, $m_author)) {
+      $meta['author']= $m_author[1];
+    }
+    $meta['title'] = $result->json->title;
 
     $meta['thumbnail_url']  = $result->json->thumbnail_url;
     $meta['thumbnail_width']= $result->json->thumbnail_width;

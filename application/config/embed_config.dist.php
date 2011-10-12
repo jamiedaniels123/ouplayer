@@ -18,6 +18,18 @@ $config['debug'] = false;
 // Debugging: always make requests to upstream servers.
 $config['always_upstream'] = true;
 
+// Experimental.
+$config['cache_minutes'] = false; //10;
+
+// Experimental.
+$config['player_scripts_compress'] = false;
+
+// Key for Embed.ly API (free for oEmbed/ Pass. Gorilla: iet-embed@ou)
+$config['embedly_api_key'] = false; //'04..7';
+
+// Experimental.
+$config['flowplayer_dev'] = false;
+
 // Flowplayer commercial license key.
 $config['flowplayer_key'] = '#$0...5';
 $config['flowplayer_version'] = '3.2.7';
@@ -53,11 +65,12 @@ $config['player_docs'] = array(
 $config['player_default_theme'] = 'ouice-light';
 
 $config['player_themes'] = array(
+  // Experimental: 'menu' flag - make themes appear in Opera/Firefox Page/'View' > Style menu.
   'basic' => array('styles'=>null, 'view'=>'ouplayer/player_noscript'),
   'core'  => array('styles'=>null),
-  'ouice-dark'=>array('title'=>'OUICE Dark', 'styles'=>'ouplayer/ouice-dark/ouice-dark.css'),
-  'ouice-bold'=>array('title'=>'OUICE Bold', 'styles'=>'ouplayer/ouice-bold/ouice-bold.css'),
-  'ouice-light'=>array('title'=>'OUICE Light', 'styles'=>'ouplayer/ouice-light/ouice-light.css'),
+  'ouice-dark'=>array('title'=>_('OUICE Dark'), 'styles'=>'ouplayer/ouice-dark/ouice-dark.css', '--menu'=>1),
+  'ouice-bold'=>array('title'=>_('OUICE Bold'), 'styles'=>'ouplayer/ouice-bold/ouice-bold.css'),
+  'ouice-light'=>array('title'=>_('OUICE Light'), 'styles'=>'ouplayer/ouice-light/ouice-light.css', '--menu'=>1),
 );
 
 // Captions pre-DB solution - Mental health (S.D.Price@open), http://podcast.open.ac.uk/podcast_items.php?id=1135

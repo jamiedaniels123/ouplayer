@@ -1,8 +1,4 @@
-/**
- * OU player controls, modified 2011-04-08 by N.D.Freear.
- * Modifications, Copyright 2011 The Open University.
-*/
-/**
+/*!
  * flowplayer.controls 3.0.2. Flowplayer JavaScript plugin.
  * 
  * This file is part of Flowplayer, http://flowplayer.org
@@ -16,6 +12,13 @@
  * Date: 2008-11-25 11:29:03 -0500 (Tue, 25 Nov 2008)
  * Revision: 1424 
  */
+/*!
+ * Modifications, ©2011 The Open University.
+ */
+//OU player controls, modified 2011-04-08 by N.D.Freear
+
+/*global window: false, document: false, $f: false, OUP: false */
+
 $f.addPlugin("controls", function(wrap, options) {
 	
 		
@@ -51,8 +54,11 @@ $f.addPlugin("controls", function(wrap, options) {
 			// must be withing [min, max]
 			if (x > max) { return false; }
 			if (x < min) { return false; } 
-			o.style.left = x + "px";
-			OUP.log('Draggable.move: '+x); //NDF.
+//ou-specific
+			//o.style.left = x + "px";
+			o.style.width = x + "px";
+			OUP.log('Draggable.move-width: '+x);
+//ou-specific ends.
 			return true;
 		}
 		
@@ -143,11 +149,12 @@ $f.addPlugin("controls", function(wrap, options) {
 		return "<span>" + toTime(time) + "</span> <strong>" + toTime(duration) + "</strong>";	
 	}
 //ou-specific
-	function plainTime(time, duration, rich) {
-		if (typeof rich!='undefined') {
-			return getTime(time, duration);
+	function plainTime(time, duration, plusTotal) {
+		if (typeof plusTotal!=='undefined') {
+			//return getTime(time, duration);
+			return toTime(time) + " / " + toTime(duration);
 		}
-		return toTime(time) + " / " + toTime(duration);
+		return toTime(time);
 	}
 //ou-specific ends.
 //}}}
@@ -256,14 +263,14 @@ $f.addPlugin("controls", function(wrap, options) {
 	};
 
 //ou-specific begins
-  var pause= byClass(opts.pauseClass);
-  var stop = byClass(opts.stopClass);
-  var repeat=byClass(opts.repeatClass);
-  var louder=byClass(opts.louderClass);
-  var quieter=byClass(opts.quieterClass);
+  var pause= byClass(opts.pauseClass),
+	  stop = byClass(opts.stopClass),
+	  repeat=byClass(opts.repeatClass),
+	  louder=byClass(opts.louderClass),
+	  quieter=byClass(opts.quieterClass),
 
-  var back   =byClass(opts.backClass);
-  var forward=byClass(opts.forwardClass);
+	  back   =byClass(opts.backClass),
+	  forward=byClass(opts.forwardClass);
 
   /*pause.onclick= function() { self.pause(); }
   stop.onclick = function() { self.stop();  }
@@ -287,14 +294,14 @@ $f.addPlugin("controls", function(wrap, options) {
   };
 
   back.onclick = function() {
-    var status = self.getStatus();
-	var to = status.time - 10;
+    var status = self.getStatus(),
+		to = status.time - 10;
 	if (to < 0) to = 0;
 	self.seek(to);
   }
   forward.onclick = function() {
-    var status = self.getStatus();
-	var to = status.time + 10;
+    var status = self.getStatus(),
+		to = status.time + 10;
 	if (to > status.duration) to = status.duration;
 	self.seek(to);
   }
@@ -309,8 +316,18 @@ $f.addPlugin("controls", function(wrap, options) {
 	}
 	
 	self.onStart(function(clip) {
-		qOUP.log('clip.duration: '+clip.duration);
-		var duration = var duration = clip.duration || opts.duration || 0;
+		OUP.log('clip.duration: ' + clip.duration);
+		var duration = clip.duration || opts.duration || 0;
+
+//ou-specific
+		if (total) {
+			if (typeof total.value=='string') {
+				total.value = toTime(duration);
+			} else {
+				total.innerHTML = toTime(duration);
+			}
+		}
+//ou-specific ends.
 
 		// clear previous timer		
 		clearInterval(timer);
@@ -323,11 +340,12 @@ $f.addPlugin("controls", function(wrap, options) {
 			// time display
 			if (status.time) {
 //ou-specific
-				if (typeof time.value=='string') {
+				// test, is 'time' a form-control?
+				if (typeof time.value === 'string') {
 					time.value = plainTime(status.time, duration);
 				} else {
 //ou-specific ends.
-				time.innerHTML = getTime(status.time, getTime(status.time, duration); //Was:clip.duration;
+				time.innerHTML = getTime(status.time, duration); //Was:clip.duration;
 				}
 			}
 			
@@ -338,21 +356,34 @@ $f.addPlugin("controls", function(wrap, options) {
 			
 			// buffer width
 			var x = getMax(status.bufferEnd, duration);
-			bufferBar.style.width = x + "px";
+//ou-specific
+			try {
+			// make buffer and progress bars proportional.
+				bufferBar.style.width = (100 * status.bufferEnd / duration) + "%";
+			} catch(e) {
+				OUP.log('Error: progressbar duration.');
+			}
+			//bufferBar.style.width = x + "px";
+//ou-specific ends.
 			head.setMax(x);	
 		
 			
 			
 			// progress width
 			if (!self.isPaused() && !head.isDragging()) {
-				x = getMax(status.time, duration);
 //ou-specific
+				try {
+				//x = getMax(status.time, duration);
 				//progressBar.style.width = x + "px";
-				progressBar.style.width = (100*status.time/duration) + "%";//parseInt.
+				var pwidth = (100 * status.time / duration) + "%"; //parseInt.
+				progressBar.style.width = pwidth;
 				progressBar.title = status.time+'s';
 				OUP.log('progress: '+status.time+'s; ball: '+ballWidth+', '+x+', '+duration+', '+ball.title);
+
+				//ball.style.left = (x -ballWidth / 2) + "px";
+				ball.style.width = pwidth;
+				} catch(e){}
 //ou-specific ends.
-				ball.style.left = (x -ballWidth / 2) + "px";
 			}
 			
 		}, 500);
