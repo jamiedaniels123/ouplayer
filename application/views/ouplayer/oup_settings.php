@@ -25,7 +25,7 @@
 <?php
 // Embed code - uses jQuery-oEmbed plugin or Iframe.
 $embed_code=null;
-if ('Vle_player'!=get_class($meta)): #('podcast'==$context)
+if ('Vle_player'==get_class($meta)): #('podcast'==$context)
   $em_title = substr_replace($meta->title, '…', 36);
   ///Translators: Player options (settings) menus or panels.
   $copy_text = t('Copy and paste');
@@ -114,7 +114,7 @@ $embedopts_url = isset($docs['embed']) ? $docs['embed'] : '#embed/TODO';
 <?php endif; ?>
   <a class="media-url" href="<?=$meta->media_url ?>" target="_blank" title="<?=t('New window') ?>"><span><?=t('Download media') ?></span></a>
 <?php if (isset($meta->transcript_url)): ?>
-  <a class="script-pdf" href="<?=$meta->transcript_url ?>" target="_blank" title="<?=t('New window: %s', t('PDF')) ?>"><span><?=t('Download transcript') ?></span></a>
+  <!-- <a class="script-pdf" href="<?=$meta->transcript_url ?>" target="_blank" title="<?=t('New window: %s', t('PDF')) ?>"><span><?=t('Download transcript') ?></span></a>  -->
 <?php endif; ?>
 <?php if (isset($meta->_short_url)): ?>
   <a class="short-url" rel="bookmark" href="<?=$meta->_short_url ?>" target="_blank" title="<?=t('New window: %s', t('perma-link')) ?>"><span><?=t('View on Podcasts site') ?></span></a>

@@ -1,5 +1,8 @@
-# ouplayer httpd config.
+AddType video/ogg .ogv
+AddType video/webm .webm
 
+# ouplayer httpd config.
+php_value short_open_tag 1
 
 # Deny OR Allow Folder Indexes.
 # Since we disable access to PHP files you
@@ -81,3 +84,4 @@ DirectoryIndex index.php
 <IfModule !mod_rewrite.c>
     ErrorDocument 404 index.php
 </IfModule>
+

@@ -7,90 +7,277 @@
 
 class Podcast_items_model extends CI_Model {
 
-    protected $db_pod;
+	protected $db_pod;
 
-    public function __construct() {
-        parent::__construct();
+	public function __construct() {
+		parent::__construct();
 
-        $this->db_pod = $this->load->database('podcast', TRUE);
-    }
+		$this->db_pod = $this->load->database('podcast', TRUE);
+	}
+	
+	// function to check to see if the file exists at the destination url
+	function url_exists($url){
+		$url = str_replace("http://", "", $url);
+		if (strstr($url, "/")) {
+			$url = explode("/", $url, 2);
+			$url[1] = "/".$url[1];
+		} else {
+			$url = array($url, "/");
+		}
 
-    public function get_item($basename, $shortcode=NULL, $captions=FALSE) {
+		$fh = fsockopen($url[0], 80);
+		if ($fh) {
+			fputs($fh,"GET ".$url[1]." HTTP/1.1\nHost:".$url[0]."\n\n");
+			if (fread($fh, 22) == "HTTP/1.1 404 Not Found") { return FALSE; }
+			else { return TRUE;    }
 
-    /* SELECT * FROM podcast_items
-      JOIN podcasts ON podcasts.id=podcast_items.podcast_id
-      WHERE podcasts.custom_id = 'vc-message-to-staff'
-      AND podcast_items.shortcode='746ee92293'
-    */
-        $sql =<<<SQL
-    SELECT p.title AS pod_title, p.*, pi.*, pim.media_type,pim.filename AS pim_filename FROM podcast_items AS pi
-      JOIN podcasts AS p ON p.id=pi.podcast_id
-      JOIN podcast_item_media AS pim ON pim.podcast_item=pi.id
-      WHERE p.custom_id LIKE '%l314-spanish'
-      AND (pi.shortcode='fe481a4d1d' OR pi.filename='l314audio1.mp3');
-SQL;
-        // This doesn't work!
-        $where_podcast_items = 'podcast_items.shortcode';
-        if (FALSE !== strpos($shortcode, '.')) {
-            $where_podcast_items = 'podcast_items.filename';
-        }
-        $sql_cc =<<<SQL
-  SELECT
-  podcasts.title AS pod_title,podcasts.summary AS pod_summary,podcasts.*,podcast_items.*,pim.media_type AS pim_type,pim.filename AS pim_filename
-	FROM podcast_items
-	JOIN podcasts ON podcasts.id=podcast_items.podcast_id
-	LEFT JOIN podcast_item_media AS pim ON pim.podcast_item=podcast_items.id
-  WHERE(
-	pim.media_type='cc-dfxp'  -- IS NOT NULL
-	AND podcasts.custom_id = '$basename'
-	AND $where_podcast_items='$shortcode' )
-  OR( podcasts.custom_id = '$basename'
-	AND $where_podcast_items='$shortcode' )
-SQL;
+		} else { return FALSE;}
+	}
 
-        // This works!
-        $select = 'podcasts.title AS pod_title, podcasts.summary AS pod_summary, podcasts.*,podcast_items.*';
-        if ($captions) {
-            $select .= ', podcast_item_media.filename AS pim_filename, podcast_item_media.media_type AS pim_type';
-        }
-        $this->db_pod->select($select);
-        $this->db_pod->join('podcasts', 'podcasts.id=podcast_items.podcast_id');
-        if ($captions) {
-            // Important: a LEFT JOIN.
-            $this->db_pod->join('podcast_item_media', 'podcast_item_media.podcast_item=podcast_items.id', 'left');
-            $this->db_pod->order_by('pim_type', 'desc');
-        }
-        $this->db_pod->where('podcasts.custom_id', $basename);      #'l314-spanish');
-        if (FALSE !== strpos($shortcode, '.')) { #(FALSE !== strpos($basename, '.m') && !$shortcode) {
-            $this->db_pod->where('podcast_items.filename', $shortcode);  #'l314audio1.mp3');
-        } else {
-            $this->db_pod->where('podcast_items.shortcode', $shortcode);#'fe481a4d1d');
-        }
-        $query = $this->db_pod->get('podcast_items'); #AS pi');
 
-        //$query = $this->db_pod->query($sql_cc);
 
-        #$this->firephp->fb($this->db_pod->last_query(), 'Podcast model', 'LOG');
+	function xml2array($contents, $get_attributes=1, $priority = 'tag') {
+		if(!$contents) return array();
 
-        $result = $query->result();
+		if(!function_exists('xml_parser_create')) {
+			//print "'xml_parser_create()' function not found!";
+			return array();
+		}
 
-        # Captions - multiple results! - Post-process
-        if ($result && $captions) {
-            foreach ($result as $res) {
-                if ('cc-dfxp'==$res->pim_type) {
-                    return $res;
-                }
-            }
-        }
-        if ($result) {
-          return $result[0];
-        }
-        return FALSE;
-    }
+		//Get the XML parser of PHP - PHP must have this module for the parser to work
+		$parser = xml_parser_create('');
+		xml_parser_set_option($parser, XML_OPTION_TARGET_ENCODING, "UTF-8"); # http://minutillo.com/steve/weblog/2004/6/17/php-xml-and-character-encodings-a-tale-of-sadness-rage-and-data-loss
+		xml_parser_set_option($parser, XML_OPTION_CASE_FOLDING, 0);
+		xml_parser_set_option($parser, XML_OPTION_SKIP_WHITE, 1);
+		xml_parse_into_struct($parser, trim($contents), $xml_values);
+		xml_parser_free($parser);
 
-    public function count() {
-        $this->db_pod->from('podcast_items');
-	    return $this->db_pod->count_all_results();
-    }
+		if(!$xml_values) return;//Hmm...
+
+		//Initializations
+		$xml_array = array();
+		$parents = array();
+		$opened_tags = array();
+		$arr = array();
+
+		$current = &$xml_array; //Refference
+
+		//Go through the tags.
+		$repeated_tag_index = array();//Multiple tags with same name will be turned into an array
+		foreach($xml_values as $data) {
+			unset($attributes,$value);//Remove existing values, or there will be trouble
+
+			//This command will extract these variables into the foreach scope
+			// tag(string), type(string), level(int), attributes(array).
+			extract($data);//We could use the array by itself, but this cooler.
+
+			$result = array();
+			$attributes_data = array();
+
+			if(isset($value)) {
+				if($priority == 'tag') $result = $value;
+				else $result['value'] = $value; //Put the value in a assoc array if we are in the 'Attribute' mode
+			}
+
+			//Set the attributes too.
+			if(isset($attributes) and $get_attributes) {
+				foreach($attributes as $attr => $val) {
+					if($priority == 'tag') $attributes_data[$attr] = $val;
+					else $result['attr'][$attr] = $val; //Set all the attributes in a array called 'attr'
+				}
+			}
+
+			//See tag status and do the needed.
+			if($type == "open") {//The starting of the tag '<tag>'
+				$parent[$level-1] = &$current;
+				if(!is_array($current) or (!in_array($tag, array_keys($current)))) { //Insert New tag
+					$current[$tag] = $result;
+					if($attributes_data) $current[$tag. '_attr'] = $attributes_data;
+					$repeated_tag_index[$tag.'_'.$level] = 1;
+
+					$current = &$current[$tag];
+
+				} else { //There was another element with the same tag name
+
+					if(isset($current[$tag][0])) {//If there is a 0th element it is already an array
+						$current[$tag][$repeated_tag_index[$tag.'_'.$level]] = $result;
+						$repeated_tag_index[$tag.'_'.$level]++;
+					} else {//This section will make the value an array if multiple tags with the same name appear together
+						$current[$tag] = array($current[$tag],$result);//This will combine the existing item and the new item together to make an array
+						$repeated_tag_index[$tag.'_'.$level] = 2;
+
+						if(isset($current[$tag.'_attr'])) { //The attribute of the last(0th) tag must be moved as well
+							$current[$tag]['0_attr'] = $current[$tag.'_attr'];
+							unset($current[$tag.'_attr']);
+						}
+
+					}
+					$last_item_index = $repeated_tag_index[$tag.'_'.$level]-1;
+					$current = &$current[$tag][$last_item_index];
+				}
+
+			} elseif($type == "complete") { //Tags that ends in 1 line '<tag />'
+				//See if the key is already taken.
+				if(!isset($current[$tag])) { //New Key
+					$current[$tag] = $result;
+					$repeated_tag_index[$tag.'_'.$level] = 1;
+					if($priority == 'tag' and $attributes_data) $current[$tag. '_attr'] = $attributes_data;
+
+				} else { //If taken, put all things inside a list(array)
+					if(isset($current[$tag][0]) and is_array($current[$tag])) {//If it is already an array...
+
+						// ...push the new element into that array.
+						$current[$tag][$repeated_tag_index[$tag.'_'.$level]] = $result;
+
+						if($priority == 'tag' and $get_attributes and $attributes_data) {
+							$current[$tag][$repeated_tag_index[$tag.'_'.$level] . '_attr'] = $attributes_data;
+						}
+						$repeated_tag_index[$tag.'_'.$level]++;
+
+					} else { //If it is not an array...
+						$current[$tag] = array($current[$tag],$result); //...Make it an array using using the existing value and the new value
+						$repeated_tag_index[$tag.'_'.$level] = 1;
+						if($priority == 'tag' and $get_attributes) {
+							if(isset($current[$tag.'_attr'])) { //The attribute of the last(0th) tag must be moved as well
+
+								$current[$tag]['0_attr'] = $current[$tag.'_attr'];
+								unset($current[$tag.'_attr']);
+							}
+
+							if($attributes_data) {
+								$current[$tag][$repeated_tag_index[$tag.'_'.$level] . '_attr'] = $attributes_data;
+							}
+						}
+						$repeated_tag_index[$tag.'_'.$level]++; //0 and 1 index is already taken
+					}
+				}
+
+			} elseif($type == 'close') { //End of tag '</tag>'
+				$current = &$parent[$level-1];
+			}
+		}
+
+		return($xml_array);
+	}
+
+
+
+
+	public function get_item($basename, $shortcode=NULL, $captions=FALSE) {
+
+		$pod_base = Oupodcast_serv::POD_BASE;
+		$file=$pod_base."/feeds/$basename/player.xml";
+
+		// Confirm RSS file containing player data exists
+		if(file($file)){
+			$rawrssdata =  $this->xml2array(file_get_contents($file));
+		}
+		else{
+			echo "<p>This media item is currently unavailable. It will appear here once it has been transcoded.</p> <!--$file does not exist.--> ";
+			die();
+		}
+		// Confirm the RSS file has item elements
+		try{
+			if(array_key_exists('item', $rawrssdata['rss']['channel'])){
+				//			require_once('dBug.php');
+				// Loop round items looking for the one that matches the shortcode
+
+				// count how many items there are
+				if (!isset($rawrssdata['rss']['channel']['item'][0])){
+					$rssdata[0]=$rawrssdata['rss']['channel']['item'];
+				}
+				else{
+					$rssdata = $rawrssdata['rss']['channel']['item'];
+				}
+
+				foreach($rssdata as $rssitem){
+				
+					// BH 20111102 - added test to check $rssitem['atom:link_attr']['href'] exists before trying to explode it
+					if (isset($rssitem['atom:link_attr']['href'])) {
+				
+						$explodedshortcodeurl=explode('#', $rssitem['atom:link_attr']['href']);
+						// If the shortcode is found populate variables with the data from that item.
+						if($explodedshortcodeurl[1]==$shortcode){
+							$rssshortcode=$explodedshortcodeurl[1];
+							$rsstitle=$rssitem['title'];
+							$rssdesc=$rssitem['description'];
+							$rssduration=$rssitem['itunes:duration'];
+							$rsspubdate=$rssitem['pubDate'];
+	
+							$rssmediafilename=explode('/', $rssitem['guid']);
+							$rssmediafilename=end($rssmediafilename);
+							if(!$this->url_exists($pod_base."/feeds/$basename/$rssmediafilename")){
+								echo "<p>Sorry this video is currently unavailable. <!--$rssmediafilename does not exist, it may still be transcoding --></p>";
+								die();
+							}
+	
+							$rssitemimage=explode('/', $rssitem['media:thumbnail_attr']['url']);
+							$rssitemimage=end($rssitemimage);  // poster image
+							if(!$this->url_exists($pod_base."/feeds/$basename/$rssitemimage")){
+								// Media Thumbnail doesn't seem to exist so fall back to use the podcast thumb, if that exists
+								$rsspodcastimage=end(explode('/', $rawrssdata['rss']['channel']['image']['url']));
+	
+								if($this->url_exists($pod_base."/feeds/$basename/".$rsspodcastimage)){
+									// we found a podcast level thumkbnail so use that oiver the default.
+									$rssitemimage=$rsspodcastimage;
+								}
+								else{
+									// There is no podcast thumbnail either so we have to use the default thumb image.
+									$rssitemimage="../default-project-thumbnail.png";
+								}
+	
+							}
+						}
+					}
+				}
+
+
+
+			}
+
+		}
+		catch(Exception $e){
+			echo 'ERROR: ' . $e->getMessage();
+			echo "<p>Sorry this video is currently unavailable.</p>  <!--$file exists but does not contain any items. -->";
+			die();
+		}
+
+
+
+		// The data to returm.  Some of it hardcoded as its not present in the RSS.
+		$result = (object) array(
+		'pod_title'=>$rsstitle,
+		'pod_summary'=> $rssdesc,
+		'podcast_id'=> '',
+		'duration'=> $rssduration,
+		'custom_id' => $basename,
+		'shortcode' => $rssshortcode,
+		'filename' => $rssmediafilename,
+		'image' => $rssitemimage,	//image filename as is
+		'image_filename' => '',	 	// image filename that it will add .jpg to
+		'private' => 'N',
+		'intranet_only' => 'N',
+		'published' => 'Y',
+		'deleted' => 'N',
+		'preferred_url' => '',
+		'target_url_text' => '',
+		'target_url' => '',
+		'itunes_u_url' => '',
+		'aspect_ratio' => '',
+		'keywords' => '',
+		'title' => $rsstitle,
+		'publication_date' => $rsspubdate,
+		'copyright' => '',
+		'source_media' => '',
+		'published_flag' => '',
+		'pim_type' => 'desktop-all'
+		);
+
+		if ($result) {
+			return $result;
+		}
+		return FALSE;
+	}
+
 
 }

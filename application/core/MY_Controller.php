@@ -42,7 +42,9 @@ class MY_Controller extends CI_Controller {
   /** Initialize the player, including the theme (Embed and Popup controllers).
   */
   protected function _player_init() {
+	
 	$themes = $this->config->item('player_themes');
+	
 	if ($this->_request->theme && isset($themes[$this->_request->theme])) {
 		$this->_theme = (object) $themes[$this->_request->theme];
 		$this->_theme->name = $this->_request->theme;
